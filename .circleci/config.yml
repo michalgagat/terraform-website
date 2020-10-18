@@ -1,70 +1,13 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
-
-references:
-  images:
-    middleman: &MIDDLEMAN_IMAGE hashicorp/middleman-hashicorp:0.3.44
-    ubuntu: &UBUNTU_IMAGE ubuntu-1604:201903-01
-
-  cache:
-    rubygem: &RUBYGEM_CACHE_KEY static-site-gems-v1-{{ checksum "content/Gemfile.lock" }}
-
-jobs:
-  website-test:
-    machine:
-      image: *UBUNTU_IMAGE
-    steps:
-      - checkout
-
-      - run:
-          name: gem and bundle install
-          command: |
-            gem install bundler -v '1.17.3' --no-document
-            bundle _1.17.3_ install --jobs=3 --retry=3
-
-      - run: make sync
-
-      - run: make website-test
-
-  deploy-website:
-    docker:
-      - image: *MIDDLEMAN_IMAGE
-    steps:
-      - checkout
-
-      # pull and update git submodules
-      - run: make sync
-
-      # restores gem cache
-      - restore_cache:
-          key: *RUBYGEM_CACHE_KEY
-
-      - run:
-          name: install gems
-          working_directory: content
-          command: bundle check || bundle install --path vendor/bundle --retry=3
-
-      # saves gem cache if we have changed the Gemfile
-      - save_cache:
-          key: *RUBYGEM_CACHE_KEY
-          paths:
-            - content/vendor/bundle
-
-      - run:
-          name: middleman build
-          working_directory: content
-          command: bundle exec middleman build
-
-      - run:
-          working_directory: content
-          command: ./scripts/deploy.sh
-
+# Use a package of configuration called an orb.
+orbs:
+  # Declare a dependency on the welcome-orb
+  welcome: circleci/welcome-orb@0.4.1
+# Orchestrate or schedule a set of jobs
 workflows:
-  website:
+  # Name the workflow "welcome"
+  welcome:
+    # Run the welcome/run job in its own container
     jobs:
-      # run on all branches and PR's
-      - website-test
-      - deploy-website:
-          context: static-sites
-          filters:
-            branches:
-              only: master
+      - welcome/run
